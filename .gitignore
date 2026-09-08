@@ -10,7 +10,7 @@ venv/
 
 # Home Assistant local configuration and message archives
 config/
-baicells_sms/
+/baicells_sms/
 *.log
 
 # Editor settings

@@ -1,0 +1,10 @@
+force_read:
+  name: Force SIM Read
+  description: Immediately reads SMS messages from the configured Baicells router.
+  fields:
+    entry_id:
+      name: Config Entry ID
+      description: Optional entry id. If omitted, all loaded Baicells SMS entries are refreshed.
+      required: false
+      selector:
+        text:

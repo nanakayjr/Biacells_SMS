@@ -1,0 +1,41 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Baicells SMS",
+        "description": "Connect to your Baicells router and read SIM SMS messages.",
+        "data": {
+          "host": "Router IP",
+          "port": "SSH Port",
+          "username": "SSH Username",
+          "password": "SSH Password",
+          "device_path": "Modem Device Path",
+          "poll_interval": "Read Frequency (seconds)",
+          "command_timeout": "SSH Command Timeout (seconds)",
+          "delete_after_read": "Delete SMS from SIM after read",
+          "strict_host_key": "Enforce host key verification",
+          "logo_path": "Logo path (example /local/baicells_sms/logo.png)"
+        }
+      }
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Baicells SMS Options",
+        "data": {
+          "host": "Router IP",
+          "port": "SSH Port",
+          "username": "SSH Username",
+          "password": "SSH Password",
+          "device_path": "Modem Device Path",
+          "poll_interval": "Read Frequency (seconds)",
+          "command_timeout": "SSH Command Timeout (seconds)",
+          "delete_after_read": "Delete SMS from SIM after read",
+          "strict_host_key": "Enforce host key verification",
+          "logo_path": "Logo path (example /local/baicells_sms/logo.png)"
+        }
+      }
+    }
+  }
+}

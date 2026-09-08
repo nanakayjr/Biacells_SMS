@@ -1,0 +1,13 @@
+{
+  "domain": "baicells_sms",
+  "name": "Baicells SMS",
+  "codeowners": [],
+  "config_flow": true,
+  "documentation": "https://github.com/twumduan/Biacells_SMS",
+  "iot_class": "local_polling",
+  "quality_scale": "bronze",
+  "requirements": [
+    "asyncssh==2.21.1"
+  ],
+  "version": "1.0.0"
+}

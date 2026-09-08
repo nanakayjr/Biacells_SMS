@@ -33,7 +33,7 @@ The Home Assistant host must be able to reach the router’s SSH port. Confirm t
 1. In Home Assistant, open **HACS**.
 2. Select **Integrations**.
 3. Select the three-dot menu, then **Custom repositories**.
-4. Add `https://github.com/twumduan/Biacells_SMS` with category **Integration**.
+4. Add `https://github.com/nanakayjr/Biacells_SMS` with category **Integration**.
 5. Find **Baicells SMS** in HACS and select **Download**.
 6. Restart Home Assistant.
 7. Go to **Settings → Devices & services → Add integration**.
