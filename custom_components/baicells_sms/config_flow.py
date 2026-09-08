@@ -8,6 +8,7 @@ import voluptuous as vol
 
 from homeassistant import config_entries
 from homeassistant.const import CONF_HOST, CONF_PASSWORD, CONF_PORT, CONF_USERNAME
+from homeassistant.core import callback
 
 from .const import (
     CONF_COMMAND_TIMEOUT,
@@ -66,6 +67,7 @@ class BaicellsSmsConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     """Handle a config flow for Baicells SMS."""
 
     VERSION = 1
+    MINOR_VERSION = 1
 
     async def async_step_user(self, user_input: dict[str, Any] | None = None):
         """Handle first setup step."""
@@ -86,20 +88,19 @@ class BaicellsSmsConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         )
 
     @staticmethod
-    def async_get_options_flow(config_entry):
+    @callback
+    def async_get_options_flow(config_entry: config_entries.ConfigEntry) -> config_entries.OptionsFlow:
+        """Return the options flow for this integration."""
         return BaicellsSmsOptionsFlow(config_entry)
 
 
 class BaicellsSmsOptionsFlow(config_entries.OptionsFlow):
     """Handle options flow for Baicells SMS."""
 
-    def __init__(self, config_entry) -> None:
-        self._config_entry = config_entry
-
     async def async_step_init(self, user_input: dict[str, Any] | None = None):
         """Manage the integration options."""
         if user_input is not None:
             return self.async_create_entry(title="", data=user_input)
 
-        defaults = {**self._config_entry.data, **self._config_entry.options}
+        defaults = {**self.config_entry.data, **self.config_entry.options}
         return self.async_show_form(step_id="init", data_schema=_build_schema(defaults))

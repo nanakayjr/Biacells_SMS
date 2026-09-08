@@ -26,12 +26,12 @@ class BaicellsSmsInboxSensor(CoordinatorEntity[BaicellsSmsCoordinator], SensorEn
     """Expose SIM inbox message data."""
 
     _attr_icon = "mdi:message-text"
+    _attr_translation_key = "inbox"
 
     def __init__(self, coordinator: BaicellsSmsCoordinator, entry: ConfigEntry) -> None:
         super().__init__(coordinator)
         self._entry = entry
         self._attr_unique_id = f"{entry.entry_id}_inbox"
-        self._attr_name = f"{DEFAULT_NAME} Inbox"
 
     @property
     def native_value(self) -> int:

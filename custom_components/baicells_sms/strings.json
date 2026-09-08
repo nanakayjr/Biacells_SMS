@@ -37,5 +37,29 @@
         }
       }
     }
+  },
+  "entity": {
+    "button": {
+      "force_read": {
+        "name": "Force SIM read"
+      }
+    },
+    "sensor": {
+      "inbox": {
+        "name": "SMS inbox"
+      }
+    }
+  },
+  "services": {
+    "force_read": {
+      "name": "Force SIM read",
+      "description": "Immediately reads SMS messages from the configured Baicells router.",
+      "fields": {
+        "entry_id": {
+          "name": "Config entry ID",
+          "description": "Optionally refresh only one configured Baicells router."
+        }
+      }
+    }
   }
 }

@@ -147,7 +147,7 @@ Some Baicells firmware requires obsolete SSH cryptography. This integration enab
 
 ## Version
 
-Current version: **1.0.0**.
+Current version: **1.0.1**.
 
 ## License
 
