@@ -1,0 +1,18 @@
+# Python bytecode and local tooling
+__pycache__/
+*.py[cod]
+.coverage
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
+
+# Home Assistant local configuration and message archives
+config/
+baicells_sms/
+*.log
+
+# Editor settings
+.idea/
+.vscode/
