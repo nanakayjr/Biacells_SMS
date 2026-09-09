@@ -89,33 +89,26 @@ class BaicellsSmsConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
     @staticmethod
     @callback
-    def async_get_options_flow(config_entry: config_entries.ConfigEntry) -> config_entries.OptionsFlow:
+    def async_get_options_flow(
+        config_entry: config_entries.ConfigEntry,
+    ) -> BaicellsSmsOptionsFlow:
+        """Return the options flow for this integration."""
         return BaicellsSmsOptionsFlow()
 
 
 class BaicellsSmsOptionsFlow(config_entries.OptionsFlow):
+    """Handle an options flow for Baicells SMS.
+
+    The active config entry is exposed automatically by Home Assistant via
+    the inherited ``config_entry`` property; it must not be stored manually
+    in ``__init__``, since that pattern is deprecated on current Home
+    Assistant releases and can raise "Invalid handler specified" errors.
+    """
+
     async def async_step_init(self, user_input: dict[str, Any] | None = None):
+        """Manage the integration options."""
         if user_input is not None:
             return self.async_create_entry(title="", data=user_input)
 
         defaults = {**self.config_entry.data, **self.config_entry.options}
         return self.async_show_form(step_id="init", data_schema=_build_schema(defaults))
-
-    
-    # @staticmethod
-    # @callback
-    # def async_get_options_flow(config_entry: config_entries.ConfigEntry) -> config_entries.OptionsFlow:
-    #     """Return the options flow for this integration."""
-    #     return BaicellsSmsOptionsFlow(config_entry)
-
-
-# class BaicellsSmsOptionsFlow(config_entries.OptionsFlow):
-#     """Handle options flow for Baicells SMS."""
-
-#     async def async_step_init(self, user_input: dict[str, Any] | None = None):
-#         """Manage the integration options."""
-#         if user_input is not None:
-#             return self.async_create_entry(title="", data=user_input)
-
-#         defaults = {**self.config_entry.data, **self.config_entry.options}
-#         return self.async_show_form(step_id="init", data_schema=_build_schema(defaults))
