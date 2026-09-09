@@ -125,6 +125,62 @@ def _parse_cmgl_header(line: str) -> dict[str, str] | None:
     }
 
 
+_HEX_BODY_RE = re.compile(r"^[0-9A-Fa-f]+$")
+
+
+def _decode_possible_hex_body(text: str) -> str:
+    """Best-effort decode of a message body a modem returned as raw hex.
+
+    Some modem firmware ignores the requested GSM character set for
+    certain messages (commonly ones stored with an alternate data coding
+    scheme) and returns the body as a hex string instead of decoded text,
+    e.g. ``5927656C6C6F...`` instead of ``Y'ello...``. This tries the two
+    hex encodings SMS modems commonly use - a single byte per character,
+    and UCS2/UTF-16BE with two bytes per character - and keeps whichever
+    decodes into readable text. If neither looks like real text, the
+    original value is returned unchanged so genuinely non-text content
+    (or a short numeric code that merely looks like hex) is never
+    corrupted.
+    """
+    compact = re.sub(r"\s+", "", text)
+    if len(compact) < 8 or not _HEX_BODY_RE.match(compact):
+        return text
+
+    def _readable_ratio(candidate: str) -> float:
+        if not candidate:
+            return 0.0
+        printable = sum(1 for ch in candidate if ch.isprintable() or ch in "\n\r\t")
+        return printable / len(candidate)
+
+    best_candidate: str | None = None
+    best_ratio = 0.0
+
+    if len(compact) % 2 == 0:
+        try:
+            single_byte = bytes.fromhex(compact).decode("latin-1")
+        except ValueError:
+            single_byte = None
+        if single_byte is not None:
+            ratio = _readable_ratio(single_byte)
+            if ratio > best_ratio:
+                best_candidate, best_ratio = single_byte, ratio
+
+    if len(compact) % 4 == 0:
+        try:
+            ucs2 = bytes.fromhex(compact).decode("utf-16-be")
+        except (ValueError, UnicodeDecodeError):
+            ucs2 = None
+        if ucs2 is not None:
+            ratio = _readable_ratio(ucs2)
+            if ratio > best_ratio:
+                best_candidate, best_ratio = ucs2, ratio
+
+    if best_candidate is not None and best_ratio >= 0.9:
+        return best_candidate
+
+    return text
+
+
 def parse_cmgl_output(raw_text: str) -> list[SmsMessage]:
     """Parse AT+CMGL modem output into structured SMS messages."""
     messages: list[SmsMessage] = []
@@ -145,7 +201,7 @@ def parse_cmgl_output(raw_text: str) -> list[SmsMessage]:
                         status=current["status"],
                         sender=current["sender"],
                         timestamp=_convert_gsm_timestamp(current["date"]),
-                        text="\n".join(body_lines).strip(),
+                        text=_decode_possible_hex_body("\n".join(body_lines).strip()),
                     )
                 )
             current = header
@@ -165,7 +221,7 @@ def parse_cmgl_output(raw_text: str) -> list[SmsMessage]:
                 status=current["status"],
                 sender=current["sender"],
                 timestamp=_convert_gsm_timestamp(current["date"]),
-                text="\n".join(body_lines).strip(),
+                text=_decode_possible_hex_body("\n".join(body_lines).strip()),
             )
         )
 
@@ -231,6 +287,12 @@ class BaicellsSmsCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 "tmp_file=\"/tmp/baicells_sms_$$.log\"",
                 f"(cat {device_path} > \"$tmp_file\") &",
                 "cat_pid=$!",
+                "sleep 0.5",
+                # Explicitly request the GSM character set. Some modems
+                # default to (or silently fall back to) UCS2/hex output
+                # for certain messages, which otherwise shows up as
+                # unreadable hex strings instead of decoded text.
+                f"printf 'AT+CSCS=\"GSM\"\\r\\n' > {device_path}",
                 "sleep 0.5",
                 f"printf 'AT+CMGF=1\\r\\n' > {device_path}",
                 "sleep 1",
@@ -385,6 +447,12 @@ class BaicellsSmsCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             _LOGGER.warning("Ignoring SMS history because it does not contain a list")
             return
         self._history = [item for item in items if isinstance(item, dict)]
+        # Retroactively decode any previously-stored messages that were
+        # saved as raw hex before this fix, so old history entries also
+        # display as readable text.
+        for item in self._history:
+            if isinstance(item.get("text"), str):
+                item["text"] = _decode_possible_hex_body(item["text"])
         self._seen_signatures = {
             item["signature"]
             for item in self._history
