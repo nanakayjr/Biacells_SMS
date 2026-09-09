@@ -72,7 +72,27 @@ After setup, Home Assistant creates:
 
 The inbox sensor includes a `messages` attribute. Each message contains `sender`, `timestamp`, and `text`, ready for dashboards and automations.
 
+> [!TIP]
+> The sensor's main **state** is just a message count (for history graphs and automations). The actual message text lives in its `messages` attribute — use the custom card or Markdown card below to display it.
+
 ## Add the inbox to a dashboard
+
+### Phone-style message card (recommended)
+
+This integration ships a custom Lovelace card, **Baicells SMS Card**, that renders messages as chat bubbles like a phone messaging app. It is loaded automatically — no manual resource registration is needed.
+
+Add a card to any dashboard (YAML mode) with the entity id shown in **Developer tools → States**:
+
+```yaml
+type: custom:baicells-sms-card
+entity: sensor.baicells_sms_inbox
+title: SMS Messages
+max_height: 420px
+```
+
+`title` and `max_height` are optional. If the card does not appear right after updating the integration, restart Home Assistant and hard-refresh the browser (Ctrl+F5) to clear the cached frontend resource list.
+
+### Markdown card (alternative)
 
 Add a **Markdown** card, switch to the YAML editor, and replace `sensor.baicells_sms_inbox` with the entity id shown in **Developer tools → States**:
 
