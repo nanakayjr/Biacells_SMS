@@ -9,9 +9,7 @@ import re
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any
-
-import asyncssh
+from typing import TYPE_CHECKING, Any
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_HOST, CONF_PASSWORD, CONF_PORT, CONF_USERNAME
@@ -31,6 +29,9 @@ from .const import (
     DEFAULT_STRICT_HOST_KEY,
     DOMAIN,
 )
+
+if TYPE_CHECKING:
+    import asyncssh
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -214,6 +215,21 @@ class BaicellsSmsCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             except OSError as err:
                 _LOGGER.warning("Unable to load SMS history file: %s", err)
             self._history_loaded = True
+
+        try:
+            # Import lazily so a missing/incompatible asyncssh installation
+            # only fails when a read is actually attempted, instead of
+            # breaking the whole integration package (and therefore the
+            # config flow) at import time. Home Assistant installs the
+            # pinned requirement from manifest.json before this coordinator
+            # ever runs, but keeping the import local guards against
+            # platforms where the wheel fails to build/install.
+            import asyncssh
+        except ImportError as err:
+            raise UpdateFailed(
+                "The 'asyncssh' package is not installed or failed to load; "
+                f"reinstall the integration requirements. Details: {err}"
+            ) from err
 
         try:
             known_hosts = None if not strict_host_key else self.hass.config.path("known_hosts")
