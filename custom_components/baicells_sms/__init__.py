@@ -8,13 +8,15 @@ from typing import Any
 import voluptuous as vol
 
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import ATTR_ENTRY_ID
 from homeassistant.core import HomeAssistant, ServiceCall
 from homeassistant.exceptions import HomeAssistantError
 
 from .const import DOMAIN, PLATFORMS, SERVICE_FORCE_READ
 from .coordinator import BaicellsSmsCoordinator
 
+# Home Assistant's public ``homeassistant.const`` module does not export an
+# ``ATTR_ENTRY_ID`` constant, so the service field name is defined locally.
+ATTR_ENTRY_ID = "entry_id"
 
 SERVICE_FORCE_READ_SCHEMA = vol.Schema({vol.Optional(ATTR_ENTRY_ID): str})
 
