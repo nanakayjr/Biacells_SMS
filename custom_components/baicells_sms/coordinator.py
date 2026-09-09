@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import csv
 import hashlib
+import io
 import json
 import logging
 import re
@@ -35,9 +37,6 @@ if TYPE_CHECKING:
 
 _LOGGER = logging.getLogger(__name__)
 
-_HEADER_RE = re.compile(
-    r'^\+CMGL:\s*(?P<index>\d+),"(?P<status>[^"]*)","(?P<sender>[^"]*)",(?:"[^"]*"|),(?:"(?P<date>[^"]*)"|)$'
-)
 _DEVICE_RE = re.compile(r"^/dev/[A-Za-z0-9._-]+$")
 
 
@@ -82,10 +81,54 @@ def _convert_gsm_timestamp(value: str) -> str:
     return f"{base.strftime('%Y-%m-%d %H:%M:%S')} {suffix}{hours:02d}:{minutes:02d}"
 
 
+def _parse_cmgl_header(line: str) -> dict[str, str] | None:
+    """Parse a single ``+CMGL:`` header line into its component fields.
+
+    Different modem firmwares format the optional ``<alpha>`` field of the
+    CMGL response differently (omitted entirely, present as an empty quoted
+    string, or present as two consecutive commas). A single fixed regular
+    expression cannot reliably cover every variant and previously caused
+    messages to be silently dropped (and, combined with the destructive
+    delete step, permanently lost) whenever the format didn't match
+    exactly. Parsing the comma-separated, quote-aware fields with the
+    standard :mod:`csv` module is far more tolerant of these differences.
+
+    Expected field layout (5 fields, ``<alpha>`` optional/empty):
+        index, status, sender, alpha, timestamp
+    Also tolerated (4 fields, no ``<alpha>`` field at all):
+        index, status, sender, timestamp
+    """
+    if not line.startswith("+CMGL:"):
+        return None
+
+    rest = line[len("+CMGL:") :].strip()
+    if not rest:
+        return None
+
+    try:
+        fields = next(csv.reader(io.StringIO(rest), skipinitialspace=True))
+    except (csv.Error, StopIteration):
+        return None
+
+    if len(fields) < 4:
+        return None
+
+    index_str = fields[0].strip()
+    if not index_str.isdigit():
+        return None
+
+    return {
+        "index": index_str,
+        "status": fields[1].strip(),
+        "sender": fields[2].strip(),
+        "date": fields[-1].strip(),
+    }
+
+
 def parse_cmgl_output(raw_text: str) -> list[SmsMessage]:
     """Parse AT+CMGL modem output into structured SMS messages."""
     messages: list[SmsMessage] = []
-    current: dict[str, Any] | None = None
+    current: dict[str, str] | None = None
     body_lines: list[str] = []
 
     for line in raw_text.splitlines():
@@ -93,8 +136,8 @@ def parse_cmgl_output(raw_text: str) -> list[SmsMessage]:
         if not line:
             continue
 
-        header_match = _HEADER_RE.match(line)
-        if header_match:
+        header = _parse_cmgl_header(line)
+        if header is not None:
             if current is not None:
                 messages.append(
                     SmsMessage(
@@ -105,7 +148,7 @@ def parse_cmgl_output(raw_text: str) -> list[SmsMessage]:
                         text="\n".join(body_lines).strip(),
                     )
                 )
-            current = header_match.groupdict()
+            current = header
             body_lines = []
             continue
 
@@ -175,30 +218,26 @@ class BaicellsSmsCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         if not _DEVICE_RE.match(device_path):
             raise UpdateFailed(f"Invalid modem device path: {device_path}")
 
-        script_lines = [
-            "set +e",
-            "tmp_file=\"/tmp/baicells_sms_$$.log\"",
-            f"(cat {device_path} > \"$tmp_file\") &",
-            "cat_pid=$!",
-            "sleep 0.5",
-            f"printf 'AT+CMGF=1\\r\\n' > {device_path}",
-            "sleep 1",
-            f"printf 'AT+CPMS=\"SM\",\"SM\",\"SM\"\\r\\n' > {device_path}",
-            "sleep 1",
-            f"printf 'AT+CMGL=\"ALL\"\\r\\n' > {device_path}",
-            "sleep 3",
-        ]
-
-        if delete_after_read:
-            script_lines.extend(
-                [
-                    f"printf 'AT+CMGD=1,4\\r\\n' > {device_path}",
-                    "sleep 1",
-                ]
-            )
-
-        script_lines.extend(
+        # Read-only script: switches to text mode, selects SIM storage and
+        # lists all messages. Deletion is intentionally NOT included here.
+        # It is issued afterwards, over the same connection, and only when
+        # Python has successfully parsed at least one message out of the
+        # output. This prevents the destructive AT+CMGD command from ever
+        # wiping messages off the SIM that we failed to parse (which would
+        # otherwise cause silent, unrecoverable message loss).
+        read_script = "\n".join(
             [
+                "set +e",
+                "tmp_file=\"/tmp/baicells_sms_$$.log\"",
+                f"(cat {device_path} > \"$tmp_file\") &",
+                "cat_pid=$!",
+                "sleep 0.5",
+                f"printf 'AT+CMGF=1\\r\\n' > {device_path}",
+                "sleep 1",
+                f"printf 'AT+CPMS=\"SM\",\"SM\",\"SM\"\\r\\n' > {device_path}",
+                "sleep 1",
+                f"printf 'AT+CMGL=\"ALL\"\\r\\n' > {device_path}",
+                "sleep 3",
                 "kill \"$cat_pid\" >/dev/null 2>&1 || true",
                 "sleep 0.3",
                 "cat \"$tmp_file\"",
@@ -207,7 +246,22 @@ class BaicellsSmsCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             ]
         )
 
-        command = "\n".join(script_lines)
+        delete_script = "\n".join(
+            [
+                "set +e",
+                "tmp_file=\"/tmp/baicells_sms_del_$$.log\"",
+                f"(cat {device_path} > \"$tmp_file\") &",
+                "cat_pid=$!",
+                "sleep 0.5",
+                f"printf 'AT+CMGD=1,4\\r\\n' > {device_path}",
+                "sleep 1",
+                "kill \"$cat_pid\" >/dev/null 2>&1 || true",
+                "sleep 0.3",
+                "cat \"$tmp_file\"",
+                "rm -f \"$tmp_file\"",
+                "exit 0",
+            ]
+        )
 
         if not self._history_loaded:
             try:
@@ -244,11 +298,32 @@ class BaicellsSmsCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 server_host_key_algs=["ssh-rsa"],
                 encryption_algs=["aes128-cbc", "3des-cbc"],
             ) as conn:
-                result = await conn.run(command, timeout=command_timeout, check=False)
+                result = await conn.run(read_script, timeout=command_timeout, check=False)
+
+                messages = parse_cmgl_output(result.stdout)
+
+                if not messages and "+CMGL:" in result.stdout:
+                    # The modem returned message headers but none of them
+                    # could be parsed. Do NOT delete anything in this case;
+                    # log full diagnostics so the header format can be
+                    # fixed, and try again on the next poll.
+                    _LOGGER.error(
+                        "Baicells SMS: found +CMGL entries in modem output "
+                        "but none could be parsed; skipping delete to avoid "
+                        "data loss. Raw output: %s",
+                        result.stdout,
+                    )
+                elif messages and delete_after_read:
+                    try:
+                        await conn.run(delete_script, timeout=command_timeout, check=False)
+                    except (OSError, asyncssh.Error, TimeoutError) as err:
+                        _LOGGER.warning(
+                            "Baicells SMS: read succeeded but deleting SIM "
+                            "messages failed: %s",
+                            err,
+                        )
         except (OSError, asyncssh.Error, TimeoutError) as err:
             raise UpdateFailed(f"SSH communication failed: {err}") from err
-
-        messages = parse_cmgl_output(result.stdout)
 
         if messages:
             try:
