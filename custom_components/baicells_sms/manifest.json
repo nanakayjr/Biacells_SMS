@@ -3,7 +3,7 @@
   "name": "Baicells SMS",
   "codeowners": [],
   "config_flow": true,
-  "documentation": "https://github.com/twumduan/Biacells_SMS",
+  "documentation": "https://github.com/nanakayjr/Biacells_SMS",
   "iot_class": "local_polling",
   "quality_scale": "bronze",
   "requirements": [
