@@ -15,12 +15,14 @@ from .const import (
     CONF_DELETE_AFTER_READ,
     CONF_DEVICE_PATH,
     CONF_LOGO_PATH,
+    CONF_MAX_ATTR_MESSAGES,
     CONF_POLL_INTERVAL,
     CONF_STRICT_HOST_KEY,
     DEFAULT_COMMAND_TIMEOUT,
     DEFAULT_DELETE_AFTER_READ,
     DEFAULT_DEVICE_PATH,
     DEFAULT_LOGO_PATH,
+    DEFAULT_MAX_ATTR_MESSAGES,
     DEFAULT_POLL_INTERVAL,
     DEFAULT_PORT,
     DEFAULT_STRICT_HOST_KEY,
@@ -59,6 +61,10 @@ def _build_schema(defaults: dict[str, Any]) -> vol.Schema:
                 CONF_LOGO_PATH,
                 default=defaults.get(CONF_LOGO_PATH, DEFAULT_LOGO_PATH),
             ): str,
+            vol.Required(
+                CONF_MAX_ATTR_MESSAGES,
+                default=defaults.get(CONF_MAX_ATTR_MESSAGES, DEFAULT_MAX_ATTR_MESSAGES),
+            ): vol.All(int, vol.Range(min=1, max=200)),
         }
     )
 

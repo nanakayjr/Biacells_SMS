@@ -14,7 +14,8 @@
           "command_timeout": "SSH Command Timeout (seconds)",
           "delete_after_read": "Delete SMS from SIM after read",
           "strict_host_key": "Enforce host key verification",
-          "logo_path": "Logo path (example /local/baicells_sms/logo.png)"
+          "logo_path": "Logo path (example /local/baicells_sms/logo.png)",
+          "max_attribute_messages": "Max messages shown on sensor (recent history stays on disk)"
         }
       }
     }
@@ -33,7 +34,8 @@
           "command_timeout": "SSH Command Timeout (seconds)",
           "delete_after_read": "Delete SMS from SIM after read",
           "strict_host_key": "Enforce host key verification",
-          "logo_path": "Logo path (example /local/baicells_sms/logo.png)"
+          "logo_path": "Logo path (example /local/baicells_sms/logo.png)",
+          "max_attribute_messages": "Max messages shown on sensor (recent history stays on disk)"
         }
       }
     }
